@@ -1,0 +1,76 @@
+Drag/Drop
+Each plugin has a method named CreateDragDropHandler.  This returns an IHandleDropDrop, which has the following methods:
+		void WhenDroppedOntoEditor(IEditor editor, DraggingContext context);
+		void WhenBeingDraggedOverEditor(IEditor editor, DraggingContext draggingContext);
+		void WhenEnteringEditor( IEditor editor, DraggingContext context) ;
+		void WhenLeavingEditor( IEditor editor, DraggingContext draggingContext ) ;
+
+		DragDropEffects DragDropEffects
+		{
+			get ;
+		}
+
+		object this[string name] { get; set; }
+
+An example is when dragging textures:  The TextureEditorPlugin returns a TextureDragDropHandler.  The WhenEnteringEditor method is:
+			var entityCreationProperties = (EntityCreationProperties) _properties[@"CreationProperties"];
+			_entityCreation = IoC.Editor.StartCreatingEntityNow(entityCreationProperties);
+
+... and the WhenBeingDraggedOverEditor looks like:
+			if (_entityCreation != null)
+			{
+				_entityCreation.CurrentEditor.SetPosition(MouseStatus.WorldPosition);
+			}
+			
+			draggingContext.DragEventArgs.Effect = DRAG_DROP_EFFECTS;
+
+
+
+Nice to have:
+Each plugin specifies their own properties editor (instead of using the properties grid)
+
+
+
+Changed:
+
+MEF
+
+Fixed align scale/align rotation
+
+Upgraded to .NET 4/XNA 4
+
+Added Lib folder with Ooki.Dialogs
+
+Added ReadMe
+
+Image lists now don't lock the files in the content folders enabling the user to delete files while the app is running.
+
+Used the replacement Ookii folder browser dialog.
+
+Changed file/save filename filters to use *.gleed and *.xml
+
+Added FileSystemWatcher to content folder
+
+Added ability to specify command line args to automatically open level file (now means that shell 'open with' now works)
+
+Level.cs is now linked to project
+
+NuGet
+
+Fixed bug when pressing Alt+F4 to exit (was recognising as just F4 to center view)
+
+
+Thanks
+======
+Enum Extensions: http://hugoware.net/blog/enumeration-extensions-2-0
+Ooki Dialogs
+Triangulate
+
+
+
+====
+Embedding the KryptonEffect.fx file in Oglr.plugins.Krypton
+--
+Create a content project - add the Fx file in it.  Reference it from the plugin itself.  Embed the xnb in a resource
+and use the ResourceContentManager
+

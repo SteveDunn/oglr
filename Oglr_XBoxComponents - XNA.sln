@@ -1,0 +1,26 @@
+
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Oglr.InGame.XBox", "src\Oglr.InGame\Oglr.InGame.XBox.csproj", "{975C1919-0BD7-4B1A-AEBD-EAA994BD3B49}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Oglr.InGame.Krypton.XBox", "src\Oglr.InGame.Krypton\Oglr.InGame.Krypton.XBox.csproj", "{74C2D090-A0D7-4EA4-BD46-14C35FB2117F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Xbox 360 = Debug|Xbox 360
+		Release|Xbox 360 = Release|Xbox 360
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{975C1919-0BD7-4B1A-AEBD-EAA994BD3B49}.Debug|Xbox 360.ActiveCfg = Debug|Xbox 360
+		{975C1919-0BD7-4B1A-AEBD-EAA994BD3B49}.Debug|Xbox 360.Build.0 = Debug|Xbox 360
+		{975C1919-0BD7-4B1A-AEBD-EAA994BD3B49}.Release|Xbox 360.ActiveCfg = Release|Xbox 360
+		{975C1919-0BD7-4B1A-AEBD-EAA994BD3B49}.Release|Xbox 360.Build.0 = Release|Xbox 360
+		{74C2D090-A0D7-4EA4-BD46-14C35FB2117F}.Debug|Xbox 360.ActiveCfg = Debug|Xbox 360
+		{74C2D090-A0D7-4EA4-BD46-14C35FB2117F}.Debug|Xbox 360.Build.0 = Debug|Xbox 360
+		{74C2D090-A0D7-4EA4-BD46-14C35FB2117F}.Release|Xbox 360.ActiveCfg = Release|Xbox 360
+		{74C2D090-A0D7-4EA4-BD46-14C35FB2117F}.Release|Xbox 360.Build.0 = Release|Xbox 360
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

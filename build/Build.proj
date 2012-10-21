@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Go" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <Import Project="$(MSBuildProjectDirectory)\Build.tasks" />
+    <Import Project="$(MSBuildProjectDirectory)\SignalR.versions.targets" />
+
+    <PropertyGroup>
+        <Configuration Condition="$(Configuration) == ''">Debug</Configuration>
+        <ProjectRoot>$(MSBuildProjectDirectory)\..</ProjectRoot>
+        <ArtifactsDir>$(ProjectRoot)\artifacts\$(Configuration)</ArtifactsDir>
+        <TestResultsPath>$(ArtifactsDir)\TestResults</TestResultsPath>
+        <DocsPath>$(ArtifactsDir)\docs</DocsPath>
+        <NuGetToolsPath>$(ProjectRoot)\.nuget</NuGetToolsPath>
+        <NuGetExePath>$(NuGetToolsPath)\nuget.exe</NuGetExePath>
+        <ToolsPath>$(ProjectRoot)\tools\</ToolsPath>
+        <XunitPath>$(ToolsPath)xunit\</XunitPath>
+        <ChutzpahExePath>$(ProjectRoot)\tools\chutzpah\chutzpah.console.exe</ChutzpahExePath>
+        <JSTestsBridgeFile>$(ProjectRoot)\SignalR.Client.JS.Tests\CommandLineBridge.js</JSTestsBridgeFile>
+        <DocuExePath>$(ToolsPath)docu\docu.exe</DocuExePath>
+        <ZipExe>$(ToolsPath)7za920\7za.exe</ZipExe>
+        <ScriptTempPath>$(ProjectRoot)\SignalR\bin\Scripts</ScriptTempPath>
+        <LocalToolsPath></LocalToolsPath>
+    </PropertyGroup>
+  
+    <PropertyGroup>
+        <!-- Build number is of the format (CurrentYear - VersionStartYear + 1)(2 digit month)(2 digit day) -->
+        <BuildDate>$([MSBuild]::Add(1, $([MSBuild]::Subtract($([System.DateTime]::Now.Year), $(VersionStartYear)))))$([System.DateTime]::Now.ToString("MMdd"))</BuildDate>
+        <Revision Condition="$(BUILD_NUMBER) != ''">$(BUILD_NUMBER)</Revision>
+        <Revision Condition="$(BUILD_NUMBER) == ''">0</Revision>
+        <PrereleaseTag Condition="$(PRERELEASE) != ''">$(BuildQuality)-$([System.DateTime]::Now.ToString("yyMMdd"))</PrereleaseTag>
+        <PrereleaseTagWithSeparator Condition="$(PrereleaseTag) != ''">-$(PrereleaseTag)</PrereleaseTagWithSeparator>
+        <Version>$(MajorVersion).$(MinorVersion).$(PatchVersion)</Version>
+        <FileVersion>$(MajorVersion).$(MinorVersion).$(BuildDate).$(Revision)</FileVersion>
+        <PackageVersion>$(MajorVersion).$(MinorVersion).$(PatchVersion)$(PrereleaseTagWithSeparator)</PackageVersion>
+    </PropertyGroup>
+    
+    <ItemGroup>
+        <RegexTransform Include="$(ProjectRoot)\Common\CommonVersionInfo.cs">
+          <Find>AssemblyVersion\("\d+\.\d+\.\d+"\)</Find>
+          <ReplaceWith>AssemblyVersion("$(Version)")</ReplaceWith>
+        </RegexTransform>
+        <RegexTransform Include="$(ProjectRoot)\Common\CommonVersionInfo.cs">
+          <Find>AssemblyFileVersion\("\d+\.\d+\.\d+\.\d+"\)</Find>
+          <ReplaceWith>AssemblyFileVersion("$(FileVersion)")</ReplaceWith>
+        </RegexTransform>
+        <RegexTransform Include="$(ProjectRoot)\Common\CommonVersionInfo.cs">
+          <Find>AssemblyInformationalVersion\("\d+\.\d+\.\d+(-\w+\d*(-\d+)?)?"\)</Find>
+          <ReplaceWith>AssemblyInformationalVersion("$(PackageVersion)")</ReplaceWith>
+        </RegexTransform>
+        <RegexTransform Include="$(ProjectRoot)\SignalR.Client\Connection.cs">
+          <Find>_assemblyVersion = new Version\("\d+\.\d+\.\d+"\)</Find>
+          <ReplaceWith>_assemblyVersion = new Version("$(Version)")</ReplaceWith>
+        </RegexTransform>
+        <RegexTransform Include="$(ProjectRoot)\SignalR.Client.JS\jquery.signalR.core.js">
+            <Find>SignalR JavaScript Library v\d+\.\d+\.\d+(-\w+\d*(-\d+)?)?</Find>
+            <ReplaceWith>SignalR JavaScript Library v$(PackageVersion)</ReplaceWith>
+        </RegexTransform>
+        <RegexTransform Include="$(ProjectRoot)\SignalR\Scripts\hubs.js">
+            <Find>SignalR JavaScript Library v\d+\.\d+\.\d+(-\w+\d*(-\d+)?)?</Find>
+            <ReplaceWith>SignalR JavaScript Library v$(PackageVersion)</ReplaceWith>
+        </RegexTransform>
+    </ItemGroup>
+    
+    <Target Name="UpdateVersion">
+        <RegexTransform Items="@(RegexTransform)" />
+    </Target>
+  
+  <UsingTask AssemblyFile="$(XunitPath)xunit.runner.msbuild.dll"
+             TaskName="Xunit.Runner.MSBuild.xunit" />
+
+  <ItemGroup>
+    <TestProjects Include="$(ProjectRoot)\SignalR.Tests\bin\$(Configuration)\SignalR.Tests.dll" />
+  </ItemGroup>
+
+  <Target Name="CI" DependsOnTargets="Build; RunTests; RunInstaller; BuildPackages;">
+  </Target>
+
+  <Target Name="Go" DependsOnTargets="Build; RunTests; RunInstaller;">
+  </Target>
+  
+  <Target Name="RunInstaller">
+    <ItemGroup>
+      <InstallerExe Include="$(ProjectRoot)\SignalR.Server.Installer\bin\$(Configuration)\signalr.exe" />
+    </ItemGroup>
+
+    <Copy SourceFiles="%(InstallerExe.Identity)" DestinationFolder="$(ArtifactsDir)" />
+
+    <Exec Command="&quot;%(InstallerExe.Identity)&quot; -install" LogStandardErrorAsError="true" />
+  </Target>
+
+  <Target Name="RunTests">
+    <Exec Command="$(ChutzpahExePath) $(JSTestsBridgeFile) /silent" />
+    <RemoveDir Directories="$(ProjectRoot)\SignalR.Client.JS.Tests\temp" ContinueOnError="true"></RemoveDir>
+    <Delete Files="$(ProjectRoot)\SignalR.Client.JS.Tests\CommandLineBridge.js" ContinueOnError="true"></Delete>
+    
+    <xunit Assembly="%(TestProjects.FullPath)" Xml="$(TestResultsPath)\SignalR.Tests.XunitResults.xml" Verbose="true" />
+  </Target>
+
+  <Target Name="CreateOutputDir">
+    <RemoveDir Directories="$(ArtifactsDir)" />
+    <MakeDir Directories="$(ArtifactsDir)" Condition="!Exists('$(ArtifactsDir)')" />
+    <MakeDir Directories="$(TestResultsPath)" Condition="!Exists('$(TestResultsPath)')" />
+    <MakeDir Directories="$(DocsPath)" Condition="!Exists('$(DocsPath)')" />
+  </Target>
+
+  <Target Name="Build" DependsOnTargets="CreateOutputDir">
+    <MSBuild Projects="$(ProjectRoot)\SignalR.sln"
+             Targets="Build"
+             Properties="Configuration=$(Configuration)" />
+
+    <MSBuild Projects="$(ProjectRoot)\SignalR.WP7.sln"
+             Targets="Build"
+             Condition="(Exists('$(MSBuildExtensionsPath)\Microsoft\Silverlight for Phone\') And Exists('$(MSBuildExtensionsPath)\Microsoft\Silverlight for Phone\v4.0\Microsoft.Silverlight.WindowsPhone71.Overrides.targets')) Or (Exists('$(LocalToolsPath)\WP7'))"
+             Properties="Configuration=$(Configuration)" />
+
+    <MSBuild Projects="$(ProjectRoot)\SignalR.Silverlight.sln"
+             Targets="Build"
+             Condition="(Exists('$(MSBuildExtensionsPath)\Microsoft\Silverlight\v4.0') And Exists('$(MSBuildExtensionsPath)\Microsoft\Silverlight\v5.0\Microsoft.Silverlight.CSharp.targets')) Or (Exists('$(LocalToolsPath)\Silverlight'))"
+             Properties="Configuration=$(Configuration)" />
+             
+    <MSBuild Projects="$(ProjectRoot)\SignalR.WinRT.sln"
+             Targets="Build"
+             Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\WindowsXaml')"
+             Properties="Configuration=$(Configuration)" />
+             
+    <MSBuild Projects="$(ProjectRoot)\SignalR45.sln"
+             Targets="Build"
+             Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v11.0\Web')"
+             Properties="Configuration=$(Configuration)" />
+  </Target>
+  
+  <Target Name="BuildDocs" DependsOnTargets="CreateOutputDir">
+    <ItemGroup>
+      <DocProjects Include="$(ProjectRoot)\SignalR\bin\$(Configuration)\SignalR.dll" />
+      <DocProjects Include="$(ProjectRoot)\SignalR.Client\bin\$(Configuration)\SignalR.Client.dll" />
+      <DocProjects Include="$(ProjectRoot)\SignalR.Hosting.AspNet\bin\$(Configuration)\SignalR.Hosting.AspNet.dll" />
+      <DocProjects Include="$(ProjectRoot)\SignalR.Hosting.Self\bin\$(Configuration)\SignalR.Hosting.Self.dll" />
+      <DocProjects Include="$(ProjectRoot)\SignalR.Hosting.Common\bin\$(Configuration)\SignalR.Hosting.Common.dll" />
+    </ItemGroup>
+    <Exec Command="&quot;$(DocuExePath)&quot; @(DocProjects, ' ')" WorkingDirectory="$(DocsPath)" />
+    <Exec Command="&quot;$(ZipExe)&quot; a ..\..\docs.v$(PackageVersion).zip" WorkingDirectory="$(DocsPath)\output" />
+  </Target>
+  
+  <Target Name="BuildPackages" DependsOnTargets="CreateOutputDir">
+    <Message Importance="high" Text="Using build resources from local tools path $(LocalToolsPath)"  /> 
+
+    <ItemGroup>
+      <JsPackage Include="$(ProjectRoot)\SignalR.Client.JS\Properties\SignalR.Js.nuspec" />
+      <MetaPackage Include="$(ProjectRoot)\SignalR\Properties\SignalR.All.nuspec" />
+      <Projects Include="$(ProjectRoot)\SignalR\SignalR.csproj" />
+      <Projects Include="$(ProjectRoot)\SignalR.Hosting.AspNet\SignalR.Hosting.AspNet.csproj" />
+      <Projects Include="$(ProjectRoot)\SignalR.Client\SignalR.Client.csproj" />
+      <Projects Include="$(ProjectRoot)\SignalR.Hosting.Self\SignalR.Hosting.Self.csproj" />
+      <Projects Include="$(ProjectRoot)\SignalR.Hosting.Common\SignalR.Hosting.Common.csproj" />
+      <WinRTClient Include="$(ProjectRoot)\SignalR.Client.WinRT\bin\$(Configuration)\SignalR.Client.*"></WinRTClient>
+    </ItemGroup>
+    
+    <!-- To workaround a bug in nuget -->
+    <MakeDir Directories="$(ProjectRoot)\SignalR.Client\bin\$(Configuration)\winrt" />
+    <Copy SourceFiles="%(WinRTClient.Identity)" DestinationFolder="$(ProjectRoot)\SignalR.Client\bin\$(Configuration)\winrt" />
+    
+    <MSBuild Projects="%(Projects.Identity)"
+             Targets="Build"
+             Properties="BuildPackage=true;Version=$(PackageVersion);PackageOutputDir=$(ArtifactsDir);Configuration=$(Configuration)" />
+    
+    <!-- Only build WP7 and Silverlight projects if SDK's avaliable -->
+    <MSBuild Projects="$(ProjectRoot)\SignalR.Client.WP7\SignalR.Client.WP7.csproj"
+             Targets="Build"
+             Condition="(Exists('$(MSBuildExtensionsPath)\Microsoft\Silverlight for Phone\') And Exists('$(MSBuildExtensionsPath)\Microsoft\Silverlight for Phone\v4.0\Microsoft.Silverlight.WindowsPhone71.Overrides.targets')) Or (Exists('$(LocalToolsPath)\WP7'))"
+             Properties="BuildPackage=true;Version=$(PackageVersion);PackageOutputDir=$(ArtifactsDir);Configuration=$(Configuration);LocalToolsPath=$(LocalToolsPath);" />
+
+    <MSBuild Projects="$(ProjectRoot)\SignalR.Client.Silverlight\SignalR.Client.Silverlight.csproj"
+             Targets="Build"
+             Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\Silverlight\v4.0') Or Exists('$(LocalToolsPath)\Silverlight\v4.0')"
+             Properties="BuildPackage=true;Version=$(PackageVersion);PackageOutputDir=$(ArtifactsDir);Configuration=$(Configuration);LocalToolsPath=$(LocalToolsPath);" />
+
+    <MSBuild Projects="$(ProjectRoot)\SignalR.Client.Silverlight5\SignalR.Client.Silverlight5.csproj"
+             Targets="Build"
+             Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\Silverlight\v5.0\Microsoft.Silverlight.CSharp.targets') Or Exists('$(LocalToolsPath)\Silverlight\v5.0')"
+             Properties="BuildPackage=true;Version=$(PackageVersion);PackageOutputDir=$(ArtifactsDir);Configuration=$(Configuration);LocalToolsPath=$(LocalToolsPath);" />
+
+    <RemoveDir Directories="$(ScriptTempPath)" />
+    <MakeDir Directories="$(ScriptTempPath)" />
+    
+    <Copy SourceFiles="$(ProjectRoot)\SignalR.Client.JS\bin\jquery.signalR.js"
+          DestinationFiles="$(ScriptTempPath)\jquery.signalR-$(PackageVersion).js" />
+    <Copy SourceFiles="$(ProjectRoot)\SignalR.Client.JS\bin\jquery.signalR.min.js"
+          DestinationFiles="$(ScriptTempPath)\jquery.signalR-$(PackageVersion).min.js" />
+
+    <Exec Command="&quot;$(NuGetExePath)&quot; pack &quot;%(JsPackage.Identity)&quot; -o &quot;$(ArtifactsDir)&quot; -p Version=$(PackageVersion) -basePath &quot;$(ScriptTempPath)&quot;"
+            LogStandardErrorAsError="true" />
+            
+    <Exec Command="&quot;$(NuGetExePath)&quot; pack &quot;%(MetaPackage.Identity)&quot; -o &quot;$(ArtifactsDir)&quot; -p Version=$(PackageVersion) -exclude **\*.cs"
+          LogStandardErrorAsError="true" />
+  </Target>
+</Project>
